@@ -1,10 +1,9 @@
 uniform float shadowBias;
-uniform sampler2DArrayShadow shadowmapTexture;
+uniform sampler2DShadow shadowmapTexture;
 uniform highp vec3 lightDirection;
 
 in mediump vec3 transformedNormal;
-in highp vec3 shadowCoords[NUM_SHADOW_MAP_LEVELS];
-uniform float shadowDepthSplits[NUM_SHADOW_MAP_LEVELS];
+in highp vec3 shadowCoord;
 
 out lowp vec4 color;
 
@@ -34,34 +33,27 @@ void main() {
 
         /* Starting with highest resolution shadow map, find one we're
            in range of */
-        for(; shadowLevel < NUM_SHADOW_MAP_LEVELS; ++shadowLevel) {
-            vec3 shadowCoord = shadowCoords[shadowLevel];
-            inRange = shadowCoord.x >= 0 &&
-                      shadowCoord.y >= 0 &&
-                      shadowCoord.x <  1 &&
-                      shadowCoord.y <  1 &&
-                      shadowCoord.z >= 0 &&
-                      shadowCoord.z <  1;
+        for(; shadowLevel < 1; ++shadowLevel) {
+            vec3 shadowCoord_ = shadowCoord;
+            inRange = shadowCoord_.x >= 0 &&
+                      shadowCoord_.y >= 0 &&
+                      shadowCoord_.x <  1 &&
+                      shadowCoord_.y <  1 &&
+                      shadowCoord_.z >= 0 &&
+                      shadowCoord_.z <  1;
             if(inRange) {
-                inverseShadow = texture(shadowmapTexture, vec4(shadowCoord.xy, shadowLevel, shadowCoord.z-shadowBias));
+                inverseShadow = texture(shadowmapTexture, vec3(
+                    shadowCoord_.xy,
+                    shadowCoord_.z - shadowBias)
+                );
                 break;
             }
         }
 
-        #ifdef DEBUG_SHADOWMAP_LEVELS
-        switch(shadowLevel) {
-            case 0: albedo *= vec3(1,0,0); break;
-            case 1: albedo *= vec3(1,1,0); break;
-            case 2: albedo *= vec3(0,1,0); break;
-            case 3: albedo *= vec3(0,1,1); break;
-            default: albedo *= vec3(1,0,1); break;
-        }
-        #else
         if(!inRange) {
             // If your shadow maps don't cover your entire view, you might want to remove this
             albedo *= vec3(1,0,1); //Something has gone wrong - didn't find a shadow map
         }
-        #endif
     }
 
     color.rgb = ((ambient + vec3(intensity*inverseShadow))*albedo);

@@ -14,7 +14,7 @@ class ShadowReceiverShader: public GL::AbstractShaderProgram {
 
         explicit ShadowReceiverShader(NoCreateT): GL::AbstractShaderProgram{NoCreate} {}
 
-        explicit ShadowReceiverShader(std::size_t numShadowLevels);
+        explicit ShadowReceiverShader();
 
         /**
          * @brief Set transformation and projection matrix
@@ -33,17 +33,17 @@ class ShadowReceiverShader: public GL::AbstractShaderProgram {
         ShadowReceiverShader& setModelMatrix(const Matrix4& matrix);
 
         /**
-         * @brief Set shadowmap matrices
+         * @brief Set shadowmap matrix
          *
          * Matrix that transforms from world space -> shadow texture space.
          */
-        ShadowReceiverShader& setShadowmapMatrices(Containers::ArrayView<const Matrix4> matrices);
+        ShadowReceiverShader& setShadowmapMatrix(const Matrix4 matrix);
 
         /** @brief Set world-space direction to the light source */
         ShadowReceiverShader& setLightDirection(const Vector3& vector3);
 
         /** @brief Set shadow map texture array */
-        ShadowReceiverShader& setShadowmapTexture(GL::Texture2DArray& texture);
+        ShadowReceiverShader& setShadowmapTexture(GL::Texture2D& texture);
 
         /**
          * @brief Set thadow bias uniform

@@ -4,13 +4,13 @@
 #include <Corrade/Utility/Resource.h>
 #include <Magnum/GL/Context.h>
 #include <Magnum/GL/Shader.h>
-#include <Magnum/GL/TextureArray.h>
+#include <Magnum/GL/Texture.h>
 #include <Magnum/GL/Version.h>
 #include <Magnum/Math/Matrix4.h>
 
 namespace Magnum { namespace Examples {
 
-ShadowReceiverShader::ShadowReceiverShader(std::size_t numShadowLevels) {
+ShadowReceiverShader::ShadowReceiverShader() {
     MAGNUM_ASSERT_GL_VERSION_SUPPORTED(GL::Version::GL330);
 
     const Utility::Resource rs{"shadow-data"};
@@ -18,7 +18,7 @@ ShadowReceiverShader::ShadowReceiverShader(std::size_t numShadowLevels) {
     GL::Shader vert{ GL::Version::GL330, GL::Shader::Type::Vertex };
     GL::Shader frag{ GL::Version::GL330, GL::Shader::Type::Fragment };
 
-    std::string preamble = "#define NUM_SHADOW_MAP_LEVELS " + std::to_string(numShadowLevels) + "\n";
+    std::string preamble = "#define NUM_SHADOW_MAP_LEVELS " + std::to_string(1) + "\n";
     vert.addSource(preamble);
     vert.addSource(rs.get("ShadowReceiver.vert"));
     frag.addSource(preamble);
@@ -52,8 +52,8 @@ ShadowReceiverShader& ShadowReceiverShader::setModelMatrix(const Matrix4& matrix
     return *this;
 }
 
-ShadowReceiverShader& ShadowReceiverShader::setShadowmapMatrices(const Containers::ArrayView<const Matrix4> matrices) {
-    setUniform(_shadowmapMatrixUniform, matrices);
+ShadowReceiverShader& ShadowReceiverShader::setShadowmapMatrix(const Matrix4 matrix) {
+    setUniform(_shadowmapMatrixUniform, matrix);
     return *this;
 }
 
@@ -62,7 +62,7 @@ ShadowReceiverShader& ShadowReceiverShader::setLightDirection(const Vector3& vec
     return *this;
 }
 
-ShadowReceiverShader& ShadowReceiverShader::setShadowmapTexture(GL::Texture2DArray& texture) {
+ShadowReceiverShader& ShadowReceiverShader::setShadowmapTexture(GL::Texture2D& texture) {
     texture.bind(ShadowmapTextureLayer);
     return *this;
 }

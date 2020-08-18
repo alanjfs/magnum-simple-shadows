@@ -3,7 +3,7 @@
 
 #include <Magnum/Resource.h>
 #include <Magnum/GL/Framebuffer.h>
-#include <Magnum/GL/TextureArray.h>
+#include <Magnum/GL/Texture.h>
 #include <Magnum/SceneGraph/Camera.h>
 #include <Magnum/SceneGraph/Drawable.h>
 #include <Magnum/SceneGraph/AbstractFeature.h>
@@ -32,7 +32,7 @@ class ShadowLight: public SceneGraph::Camera3D {
          * Should be called before @ref setupSplitDistances().
          *
          */
-        void setupShadowmaps(Int numShadowLevels, const Vector2i& size);
+        void setupShadowmaps(const Vector2i& size);
 
         /**
          * @brief Set up the distances we should cut the view frustum along
@@ -64,25 +64,25 @@ class ShadowLight: public SceneGraph::Camera3D {
 
         std::vector<Vector3> layerFrustumCorners(SceneGraph::Camera3D& mainCamera, Int layer);
 
-        Float cutZ(Int layer) const;
+        Float cutZ() const;
 
-        Float cutDistance(Float zNear, Float zFar, Int layer) const;
+        Float cutDistance(Float zNear, Float zFar) const;
 
-        std::size_t layerCount() const { return _layers.size(); }
+        std::size_t layerCount() const { return 1; }
 
-        const Matrix4& layerMatrix(Int layer) const {
-            return _layers[layer].shadowMatrix;
+        const Matrix4& layerMatrix() const {
+            return _data->shadowMatrix;
         }
 
         std::vector<Vector4> calculateClipPlanes();
 
-        GL::Texture2DArray& shadowTexture() { return _shadowTexture; }
+        GL::Texture2D& shadowTexture() { return _shadowTexture; }
 
     private:
         Object3D& _object;
-        GL::Texture2DArray _shadowTexture;
+        GL::Texture2D _shadowTexture;
 
-        struct ShadowLayerData {
+        struct ShadowData {
             GL::Framebuffer shadowFramebuffer;
             Matrix4 shadowCameraMatrix;
             Matrix4 shadowMatrix;
@@ -90,10 +90,10 @@ class ShadowLight: public SceneGraph::Camera3D {
             Float orthographicNear, orthographicFar;
             Float cutPlane;
 
-            explicit ShadowLayerData(const Vector2i& size);
+            explicit ShadowData(const Vector2i& size);
         };
 
-        std::vector<ShadowLayerData> _layers;
+        ShadowData* _data;
 };
 
 }}
