@@ -67,12 +67,10 @@ class ShadowsExample: public Platform::Application {
 
         std::vector<Model> _models;
 
-        Vector3 _mainCameraVelocity;
+        Vector3 _cameraVelocity;
 
         Float _shadowBias { 0.003f };
         Vector2i _shadowMapSize { 1024, 1024 };
-        Int _shadowMapFaceCullMode { 2 };
-        bool _shadowStaticAlignment { false };
 };
 
 ShadowsExample::ShadowsExample(const Arguments& arguments):
@@ -183,9 +181,11 @@ Object3D* ShadowsExample::createSceneObject(Model& model, bool makeCaster, bool 
 }
 
 void ShadowsExample::drawEvent() {
-    if(!_mainCameraVelocity.isZero()) {
+    if(!_cameraVelocity.isZero()) {
         Matrix4 transform = _cameraObject.transformation();
-        transform.translation() += transform.rotation()*_mainCameraVelocity*0.3f;
+        transform.translation() += transform.rotation()
+                                   * _cameraVelocity
+                                   * 0.3f;
         _cameraObject.setTransformation(transform);
         redraw();
     }
@@ -245,33 +245,22 @@ void ShadowsExample::keyPressEvent(KeyEvent& event) {
         this->exit();
 
     } else if(event.key() == KeyEvent::Key::Up) {
-        _mainCameraVelocity.z() = -1.0f;
+        _cameraVelocity.z() = -1.0f;
 
     } else if(event.key() == KeyEvent::Key::Down) {
-        _mainCameraVelocity.z() = 1.0f;
+        _cameraVelocity.z() = 1.0f;
 
     } else if(event.key() == KeyEvent::Key::PageUp) {
-        _mainCameraVelocity.y() = 1.0f;
+        _cameraVelocity.y() = 1.0f;
 
     } else if(event.key() == KeyEvent::Key::PageDown) {
-        _mainCameraVelocity.y() = -1.0f;
+        _cameraVelocity.y() = -1.0f;
 
     } else if(event.key() == KeyEvent::Key::Right) {
-        _mainCameraVelocity.x() = 1.0f;
+        _cameraVelocity.x() = 1.0f;
 
     } else if(event.key() == KeyEvent::Key::Left) {
-        _mainCameraVelocity.x() = -1.0f;
-
-    } else if(event.key() == KeyEvent::Key::F3) {
-        _shadowMapFaceCullMode = (_shadowMapFaceCullMode + 1) % 3;
-        Debug() << "Face cull mode:"
-                << (_shadowMapFaceCullMode == 0 ? "no cull" : _shadowMapFaceCullMode == 1
-                                                ? "cull back" : "cull front");
-
-    } else if(event.key() == KeyEvent::Key::F4) {
-        _shadowStaticAlignment = !_shadowStaticAlignment;
-        Debug() << "Shadow alignment:"
-            << (_shadowStaticAlignment ? "static" : "camera direction");
+        _cameraVelocity.x() = -1.0f;
 
     } else if(event.key() == KeyEvent::Key::F7) {
         _shadowReceiverShader.setShadowBias(_shadowBias /= 1.125f);
@@ -312,13 +301,13 @@ void ShadowsExample::recompileReceiverShader() {
 
 void ShadowsExample::keyReleaseEvent(KeyEvent &event) {
     if(event.key() == KeyEvent::Key::Up || event.key() == KeyEvent::Key::Down) {
-        _mainCameraVelocity.z() = 0.0f;
+        _cameraVelocity.z() = 0.0f;
 
     } else if (event.key() == KeyEvent::Key::PageDown || event.key() == KeyEvent::Key::PageUp) {
-        _mainCameraVelocity.y() = 0.0f;
+        _cameraVelocity.y() = 0.0f;
 
     } else if (event.key() == KeyEvent::Key::Right || event.key() == KeyEvent::Key::Left) {
-        _mainCameraVelocity.x() = 0.0f;
+        _cameraVelocity.x() = 0.0f;
 
     } else return;
 

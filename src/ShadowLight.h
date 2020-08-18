@@ -60,8 +60,6 @@ class ShadowLight: public SceneGraph::Camera3D {
             return _data->shadowMatrix;
         }
 
-        std::vector<Vector4> calculateClipPlanes();
-
         GL::Texture2D& shadowTexture() { return _shadowTexture; }
 
     private:
