@@ -20,9 +20,9 @@ namespace Magnum { namespace Examples {
 */
 class ShadowLight: public SceneGraph::Camera3D {
     public:
-        static std::vector<Vector3> cameraFrustumCorners(SceneGraph::Camera3D& mainCamera, Float z0 = -1.0f, Float z1 = 1.0f);
-
+        static std::vector<Vector3> frustumCorners(SceneGraph::Camera3D& mainCamera, Float z0 = -1.0f, Float z1 = 1.0f);
         static std::vector<Vector3> frustumCorners(const Matrix4& imvp, Float z0, Float z1);
+        std::vector<Vector3> frustumCorners(SceneGraph::Camera3D& mainCamera, Int layer);
 
         explicit ShadowLight(SceneGraph::Object<SceneGraph::MatrixTransformation3D>& parent);
 
@@ -54,7 +54,6 @@ class ShadowLight: public SceneGraph::Camera3D {
          */
         void render(SceneGraph::DrawableGroup3D& drawables);
 
-        std::vector<Vector3> layerFrustumCorners(SceneGraph::Camera3D& mainCamera, Int layer);
 
         const Matrix4& layerMatrix() const {
             return _data->shadowMatrix;

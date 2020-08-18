@@ -38,7 +38,6 @@ void ShadowLight::setupShadowmaps(const Vector2i& size) {
         .setCompareMode(GL::SamplerCompareMode::CompareRefToTexture)
     ;
 
-    if (_data != nullptr) delete _data;
     _data = new ShadowData{size};
 
     GL::Framebuffer& shadowFramebuffer = _data->shadowFramebuffer;
@@ -66,7 +65,7 @@ void ShadowLight::setTarget(const Vector3& lightDirection,
 
     std::size_t dataIndex { 0 };
 
-    std::vector<Vector3> mainCameraFrustumCorners = layerFrustumCorners(
+    std::vector<Vector3> mainCameraFrustumCorners = frustumCorners(
         mainCamera, Int(dataIndex)
     );
 
@@ -94,16 +93,16 @@ void ShadowLight::setTarget(const Vector3& lightDirection,
     _data->shadowCameraMatrix = cameraMatrix;
 }
 
-std::vector<Vector3> ShadowLight::layerFrustumCorners(SceneGraph::Camera3D& mainCamera,
-                                                       const Int data) {
+std::vector<Vector3> ShadowLight::frustumCorners(SceneGraph::Camera3D& mainCamera,
+                                                 const Int data) {
     const Float z0 = data == 0 ? 0 : _data->cutPlane;
     const Float z1 = _data->cutPlane;
-    return cameraFrustumCorners(mainCamera, z0, z1);
+    return frustumCorners(mainCamera, z0, z1);
 }
 
-std::vector<Vector3> ShadowLight::cameraFrustumCorners(SceneGraph::Camera3D& mainCamera,
-                                                       const Float z0,
-                                                       const Float z1) {
+std::vector<Vector3> ShadowLight::frustumCorners(SceneGraph::Camera3D& mainCamera,
+                                                 const Float z0,
+                                                 const Float z1) {
     const Matrix4 imvp = (mainCamera.projectionMatrix()*mainCamera.cameraMatrix()).inverted();
     return frustumCorners(imvp, z0, z1);
 }
@@ -123,23 +122,13 @@ std::vector<Vector3> ShadowLight::frustumCorners(const Matrix4& imvp,
 
 
 void ShadowLight::render(SceneGraph::DrawableGroup3D& drawables) {
-    /* Compute transformations of all objects in the group relative to the camera */
-    // std::vector<std::reference_wrapper<Object3D>> objects;
-    // objects.reserve(drawables.size());
-
-    // for(std::size_t i = 0; i != drawables.size(); ++i) {
-    //     objects.push_back(static_cast<Object3D&>(drawables[i].object()));
-    // }
-
-    // std::vector<ShadowCasterDrawable*> filteredDrawables;
-
     /* Projecting world points normalized device coordinates means they range
        -1 -> 1. Use this bias matrix so we go straight from world -> texture
        space */
-    constexpr const Matrix4 bias {{0.5f, 0.0f, 0.0f, 0.0f},
-                                  {0.0f, 0.5f, 0.0f, 0.0f},
-                                  {0.0f, 0.0f, 0.5f, 0.0f},
-                                  {0.5f, 0.5f, 0.5f, 1.0f}};
+    constexpr const Matrix4 bias { {0.5f, 0.0f, 0.0f, 0.0f},
+                                   {0.0f, 0.5f, 0.0f, 0.0f},
+                                   {0.0f, 0.0f, 0.5f, 0.0f},
+                                   {0.5f, 0.5f, 0.5f, 1.0f} };
 
     GL::Renderer::setDepthMask(true);
 
@@ -158,22 +147,12 @@ void ShadowLight::render(SceneGraph::DrawableGroup3D& drawables) {
         )
     );
 
-    const Matrix4 shadowCameraProjectionMatrix = Matrix4::orthographicProjection(
-        _data->orthographicSize,
-        orthographicNear,
-        orthographicFar
-    );
-
     _data->shadowMatrix = bias
-                       * shadowCameraProjectionMatrix
-                       * cameraMatrix();
-
-    setProjectionMatrix(shadowCameraProjectionMatrix);
-
+                        * projectionMatrix()
+                        * cameraMatrix();
     _data->shadowFramebuffer.clear(GL::FramebufferClear::Depth)
-                           .bind();
+                            .bind();
 
-    // for (std::size_t i=0; i!=transformationsOutIndex; ++i) {
     for (std::size_t i = 0; i != drawables.size(); ++i) {
         auto& obj = static_cast<Object3D&>(drawables[i].object());
         auto transform = cameraMatrix()
