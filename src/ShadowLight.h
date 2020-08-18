@@ -35,14 +35,6 @@ class ShadowLight: public SceneGraph::Camera3D {
         void setupShadowmaps(const Vector2i& size);
 
         /**
-         * @brief Set up the distances we should cut the view frustum along
-         *
-         * The distances will be distributed along a power series. Should be
-         * called after @ref setupShadowmaps().
-         */
-        void setupSplitDistances(Float cameraNear, Float cameraFar, Float power);
-
-        /**
          * @brief Computes all the matrices for the shadow map splits
          * @param lightDirection    Direction of travel of the light
          * @param screenDirection   Crossed with light direction to determine
@@ -64,10 +56,6 @@ class ShadowLight: public SceneGraph::Camera3D {
 
         std::vector<Vector3> layerFrustumCorners(SceneGraph::Camera3D& mainCamera, Int layer);
 
-        Float cutZ() const;
-
-        Float cutDistance(Float zNear, Float zFar) const;
-
         std::size_t layerCount() const { return 1; }
 
         const Matrix4& layerMatrix() const {
@@ -88,7 +76,7 @@ class ShadowLight: public SceneGraph::Camera3D {
             Matrix4 shadowMatrix;
             Vector2 orthographicSize;
             Float orthographicNear, orthographicFar;
-            Float cutPlane;
+            Float cutPlane { 1.0f };
 
             explicit ShadowData(const Vector2i& size);
         };

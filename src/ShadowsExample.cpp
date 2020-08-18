@@ -51,9 +51,8 @@ class ShadowsExample: public Platform::Application {
         void addModel(const Trade::MeshData& meshData3D);
         void renderDebugLines();
         Object3D* createSceneObject(Model& model, bool makeCaster, bool makeReceiver);
-        void recompileReceiverShader(std::size_t numLayers);
+        void recompileReceiverShader();
         void setShadowMapSize(const Vector2i& shadowMapSize);
-        void setShadowSplitExponent(Float power);
 
         Scene3D _scene;
         SceneGraph::DrawableGroup3D _shadowCasterDrawables;
@@ -79,7 +78,6 @@ class ShadowsExample: public Platform::Application {
         Vector3 _mainCameraVelocity;
 
         Float _shadowBias { 0.003f };
-        Float _layerSplitExponent { 3.0f };
         Vector2i _shadowMapSize { 1024, 1024 };
         Int _shadowMapFaceCullMode { 2 };
         bool _shadowStaticAlignment { false };
@@ -118,9 +116,6 @@ ShadowsExample::ShadowsExample(const Arguments& arguments):
             std::rand() * 5.0f   / RAND_MAX,
             std::rand() * 100.0f / RAND_MAX - 50.0f}));
     }
-
-
-    _shadowLight.setupSplitDistances(MainCameraNear, MainCameraFar, _layerSplitExponent);
 
     _mainCamera.setProjectionMatrix(
         Matrix4::perspectiveProjection(
@@ -275,23 +270,20 @@ void ShadowsExample::renderDebugLines() {
                                          {-1.0f, -1.0f, -1.0f, 1.0f}};
 
     _debugLines.reset();
+
     const Matrix4 imvp = (_mainCamera.projectionMatrix()*_mainCamera.cameraMatrix()).inverted();
-    for (Int layerIndex = 0; layerIndex != _shadowLight.layerCount(); ++layerIndex) {
-        const Matrix4 layerMatrix = _shadowLight.layerMatrix();
-        const Deg hue = layerIndex * 360.0_degf / _shadowLight.layerCount();
+    const Matrix4 layerMatrix = _shadowLight.layerMatrix();
 
-        _debugLines.addFrustum(
-            (unbiasMatrix * layerMatrix).inverted(),
-            Color3::fromHsv({ hue, 1.0f, 0.5f })
-        );
+    _debugLines.addFrustum(
+        (unbiasMatrix * layerMatrix).inverted(),
+        Color3::fromHsv({ 0.0_degf, 1.0f, 0.5f })
+    );
 
-        _debugLines.addFrustum(
-            imvp,
-            Color3::fromHsv({ hue, 1.0f, 1.0f }),
-            layerIndex == 0 ? 0 : _shadowLight.cutZ(),
-            _shadowLight.cutZ()
-        );
-    }
+    _debugLines.addFrustum(
+        imvp,
+        Color3::fromHsv({ 0.0_degf, 1.0f, 1.0f }),
+        0, 1
+    );
 
     _debugLines.draw(
         _activeCamera->projectionMatrix() *
@@ -368,12 +360,6 @@ void ShadowsExample::keyPressEvent(KeyEvent& event) {
         Debug() << "Shadow alignment:"
             << (_shadowStaticAlignment ? "static" : "camera direction");
 
-    } else if(event.key() == KeyEvent::Key::F5) {
-        setShadowSplitExponent(_layerSplitExponent *= 1.125f);
-
-    } else if(event.key() == KeyEvent::Key::F6) {
-        setShadowSplitExponent(_layerSplitExponent /= 1.125f);
-
     } else if(event.key() == KeyEvent::Key::F7) {
         _shadowReceiverShader.setShadowBias(_shadowBias /= 1.125f);
         Debug() << "Shadow bias" << _shadowBias;
@@ -382,47 +368,17 @@ void ShadowsExample::keyPressEvent(KeyEvent& event) {
         _shadowReceiverShader.setShadowBias(_shadowBias *= 1.125f);
         Debug() << "Shadow bias" << _shadowBias;
 
-    } else if(event.key() == KeyEvent::Key::F9) {
-        std::size_t numLayers = _shadowLight.layerCount() - 1;
-        if(numLayers >= 1) {
-            _shadowLight.setupShadowmaps(_shadowMapSize);
-            recompileReceiverShader(numLayers);
-            _shadowLight.setupSplitDistances(MainCameraNear, MainCameraFar, _layerSplitExponent);
-            Debug() << "Shadow map size" << _shadowMapSize << "x" << _shadowLight.layerCount() << "layers";
-        } else return;
-
-    } else if(event.key() == KeyEvent::Key::F10) {
-        std::size_t numLayers = _shadowLight.layerCount() + 1;
-        if(numLayers <= 32) {
-            _shadowLight.setupShadowmaps(_shadowMapSize);
-            recompileReceiverShader(numLayers);
-            _shadowLight.setupSplitDistances(MainCameraNear, MainCameraFar, _layerSplitExponent);
-            Debug() << "Shadow map size" << _shadowMapSize << "x" << _shadowLight.layerCount() << "layers";
-        } else return;
-
     } else if(event.key() == KeyEvent::Key::F11) {
-        setShadowMapSize(_shadowMapSize/2);
+        setShadowMapSize(_shadowMapSize / 2);
 
     } else if(event.key() == KeyEvent::Key::F12) {
-        setShadowMapSize(_shadowMapSize*2);
+        setShadowMapSize(_shadowMapSize * 2);
 
     } else return;
 
     event.setAccepted();
     redraw();
 }
-
-void ShadowsExample::setShadowSplitExponent(const Float power) {
-    _shadowLight.setupSplitDistances(MainCameraNear, MainCameraFar, power);
-    std::string buf;
-    for(std::size_t layer = 0; layer != _shadowLight.layerCount(); ++layer) {
-        if(layer) buf += ", ";
-        buf += std::to_string(_shadowLight.cutDistance(MainCameraNear, MainCameraFar));
-    }
-
-    Debug() << "Shadow splits power=" << power << "cut points:" << buf;
-}
-
 
 void ShadowsExample::setShadowMapSize(const Vector2i& shadowMapSize) {
     if((shadowMapSize >= Vector2i{1}).all() && (shadowMapSize <= GL::Texture2D::maxSize()).all()) {
@@ -432,7 +388,7 @@ void ShadowsExample::setShadowMapSize(const Vector2i& shadowMapSize) {
     }
 }
 
-void ShadowsExample::recompileReceiverShader(const std::size_t numLayers) {
+void ShadowsExample::recompileReceiverShader() {
     _shadowReceiverShader = ShadowReceiverShader{};
     _shadowReceiverShader.setShadowBias(_shadowBias);
     for(std::size_t i = 0; i != _shadowReceiverDrawables.size(); ++i) {

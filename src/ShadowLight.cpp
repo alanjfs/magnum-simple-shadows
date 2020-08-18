@@ -24,12 +24,18 @@ ShadowLight::ShadowLight(SceneGraph::Object<SceneGraph::MatrixTransformation3D>&
 void ShadowLight::setupShadowmaps(const Vector2i& size) {
     _shadowTexture = GL::Texture2D{};
     _shadowTexture
+
+        // See also DepthComponent8/16/32
         .setStorage(1, GL::TextureFormat::DepthComponent24, size)
-        .setMaxLevel(0)
+        
+        // Required, else OpenGL will get mad at you, saying..
+        //    Program undefined behavior warning: 
+        //    Sampler object 0 does not have depth compare enabled.
+        //    It is being used with depth texture 2, by a program
+        //    that samples it with a shadow sampler.
+        //    This is undefined behavior.
         .setCompareFunction(GL::SamplerCompareFunction::LessOrEqual)
         .setCompareMode(GL::SamplerCompareMode::CompareRefToTexture)
-        .setMinificationFilter(GL::SamplerFilter::Linear, GL::SamplerMipmap::Base)
-        .setMagnificationFilter(GL::SamplerFilter::Linear)
     ;
 
     _data = new ShadowData{size};
@@ -85,27 +91,6 @@ void ShadowLight::setTarget(const Vector3& lightDirection,
     _data->orthographicFar =  0.5f * range.z();
     cameraMatrix.translation() = cameraPosition;
     _data->shadowCameraMatrix = cameraMatrix;
-}
-
-Float ShadowLight::cutZ() const {
-    return _data->cutPlane;
-}
-
-void ShadowLight::setupSplitDistances(const Float zNear,
-                                      const Float zFar,
-                                      const Float power) {
-    /* props http://stackoverflow.com/a/33465663 */
-    // for(std::size_t i = 0; i != _datas.size(); ++i) {
-    const Float linearDepth = zNear + std::pow(Float(0 + 1)/1, power) * (zFar - zNear);
-    const Float nonLinearDepth = (zFar + zNear - 2.0f*zNear*zFar/linearDepth)/(zFar - zNear);
-    _data->cutPlane = (nonLinearDepth + 1.0f)/2.0f;
-}
-
-Float ShadowLight::cutDistance(const Float zNear,
-                               const Float zFar) const {
-    const Float depthSample = 2.0f * _data->cutPlane - 1.0f;
-    const Float zLinear = 2.0f*zNear*zFar/(zFar + zNear - depthSample*(zFar - zNear));
-    return zLinear;
 }
 
 std::vector<Vector3> ShadowLight::layerFrustumCorners(SceneGraph::Camera3D& mainCamera,
