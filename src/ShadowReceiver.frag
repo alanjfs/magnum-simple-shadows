@@ -9,10 +9,10 @@ out lowp vec4 color;
 
 void main() {
     /* You might want to source this from a texture or a vertex color */
-    vec3 albedo = vec3(0.5,0.5,0.5);
+    vec3 albedo = vec3(0.5, 0.5, 0.5);
 
     /* You might want to source this from a uniform */
-    vec3 ambient = vec3(0.5,0.5,0.5);
+    vec3 ambient = vec3(0.5, 0.5, 0.5);
 
     mediump vec3 normalizedTransformedNormal = normalize(transformedNormal);
 
@@ -28,34 +28,11 @@ void main() {
         intensity = 0.0f;
 
     } else {
-        int shadowLevel = 0;
-        bool inRange = false;
-
-        /* Starting with highest resolution shadow map, find one we're
-           in range of */
-        for(; shadowLevel < 1; ++shadowLevel) {
-            vec3 shadowCoord_ = shadowCoord;
-            inRange = shadowCoord_.x >= 0 &&
-                      shadowCoord_.y >= 0 &&
-                      shadowCoord_.x <  1 &&
-                      shadowCoord_.y <  1 &&
-                      shadowCoord_.z >= 0 &&
-                      shadowCoord_.z <  1;
-            if(inRange) {
-                inverseShadow = texture(shadowmapTexture, vec3(
-                    shadowCoord_.xy,
-                    shadowCoord_.z - shadowBias)
-                );
-                break;
-            }
-        }
-
-        if(!inRange) {
-            // If your shadow maps don't cover your entire view, you might want to remove this
-            albedo *= vec3(1,0,1); //Something has gone wrong - didn't find a shadow map
-        }
+        inverseShadow = texture(shadowmapTexture, vec3(
+            shadowCoord.xy,
+            shadowCoord.z - shadowBias)
+        );
     }
 
-    color.rgb = ((ambient + vec3(intensity*inverseShadow))*albedo);
-    color.a = 1.0;
+    color.rgba = vec4((ambient + vec3(intensity * inverseShadow)) * albedo, 1.0);
 }

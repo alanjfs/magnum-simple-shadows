@@ -20,10 +20,8 @@
 #include <Magnum/ImGuiIntegration/Context.hpp>
 #include <Magnum/ImGuiIntegration/Widgets.h>
 
-#include "ShadowCasterShader.h"
 #include "ShadowReceiverShader.h"
 #include "ShadowLight.h"
-#include "ShadowCasterDrawable.h"
 #include "ShadowReceiverDrawable.h"
 #include "Types.h"
 
@@ -54,14 +52,13 @@ class ShadowsExample: public Platform::Application {
 
         void step();
         void addModel(const Trade::MeshData& meshData3D);
-        Object3D* createSceneObject(Model& model, bool makeCaster, bool makeReceiver);
+        Object3D* createSceneObject(Model& model);
         void recompileReceiverShader();
         void setShadowMapSize(const Vector2i& shadowMapSize);
 
         ImGuiIntegration::Context _imgui{NoCreate};
 
         Scene3D _scene;
-        SceneGraph::DrawableGroup3D _shadowCasterDrawables;
         SceneGraph::DrawableGroup3D _shadowReceiverDrawables;
         ShadowReceiverShader _shadowReceiverShader{ NoCreate };
 
@@ -92,7 +89,6 @@ ShadowsExample::ShadowsExample(const Arguments& arguments):
     _cameraObject{ &_scene },
     _camera{ _cameraObject }
 {
-
     _imgui = ImGuiIntegration::Context(Vector2{ windowSize() } / dpiScaling(),
                                        windowSize(),
                                        framebufferSize());
@@ -118,12 +114,12 @@ ShadowsExample::ShadowsExample(const Arguments& arguments):
     addModel(Primitives::capsule3DSolid(1, 1, 4, 1.0f));
     addModel(Primitives::capsule3DSolid(6, 1, 9, 1.0f));
 
-    Object3D* ground = createSceneObject(_models[0], false, true);
+    Object3D* ground = createSceneObject(_models[0]);
     ground->setTransformation(Matrix4::scaling({100, 1, 100}));
 
     for(std::size_t i = 0; i != 200; ++i) {
         Model& model = _models[std::rand()%_models.size()];
-        Object3D* object = createSceneObject(model, true, true);
+        Object3D* object = createSceneObject(model);
         object->setTransformation(Matrix4::translation({
             std::rand() * 100.0f / RAND_MAX - 50.0f,
             std::rand() * 5.0f   / RAND_MAX,
@@ -187,7 +183,7 @@ void ShadowsExample::addModel(const Trade::MeshData& meshData) {
  * for culling.
  *
  */
-Object3D* ShadowsExample::createSceneObject(Model& model, bool, bool) {
+Object3D* ShadowsExample::createSceneObject(Model& model) {
     auto* object = new Object3D(&_scene);
 
     auto receiver = new ShadowReceiverDrawable(*object, &_shadowReceiverDrawables);
@@ -221,6 +217,7 @@ void ShadowsExample::drawEvent() {
     }
     GL::Renderer::setFaceCullingMode(GL::Renderer::PolygonFacing::Back);
 
+    ImGui::SetNextWindowSize({200, 200}, ImGuiCond_FirstUseEver);
     ImGui::Begin("Shadowmap");
     {
         ImGuiIntegration::image(

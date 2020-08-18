@@ -47,12 +47,8 @@ corrade_add_resource(Shadows_RESOURCES resources.conf)
 
 add_executable(magnum-shadows
     ShadowsExample.cpp
-    ShadowCasterDrawable.h
-    ShadowCasterDrawable.cpp
     ShadowLight.h
     ShadowLight.cpp
-    ShadowCasterShader.cpp
-    ShadowCasterShader.h
     ShadowReceiverDrawable.cpp
     ShadowReceiverDrawable.h
     ShadowReceiverShader.cpp

@@ -11,8 +11,6 @@
 #include <Magnum/SceneGraph/MatrixTransformation3D.h>
 #include <Magnum/SceneGraph/Scene.h>
 
-#include "ShadowCasterDrawable.h"
-
 namespace Magnum { namespace Examples {
 
 ShadowLight::ShadowLight(SceneGraph::Object<SceneGraph::MatrixTransformation3D>& parent)
