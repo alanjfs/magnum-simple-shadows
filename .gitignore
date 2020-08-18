@@ -1,0 +1,4 @@
+build/
+prefix/
+install/
+*.vs
