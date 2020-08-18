@@ -15,8 +15,8 @@
 #include <Magnum/SceneGraph/Scene.h>
 #include <Magnum/SceneGraph/MatrixTransformation3D.h>
 #include <Magnum/Trade/MeshData.h>
+#include <Magnum/Math/Color.h>
 
-#include "DebugLines.h"
 #include "ShadowCasterShader.h"
 #include "ShadowReceiverShader.h"
 #include "ShadowLight.h"
@@ -49,7 +49,6 @@ class ShadowsExample: public Platform::Application {
         void keyReleaseEvent(KeyEvent &event) override;
 
         void addModel(const Trade::MeshData& meshData3D);
-        void renderDebugLines();
         Object3D* createSceneObject(Model& model, bool makeCaster, bool makeReceiver);
         void recompileReceiverShader();
         void setShadowMapSize(const Vector2i& shadowMapSize);
@@ -60,18 +59,11 @@ class ShadowsExample: public Platform::Application {
         ShadowCasterShader _shadowCasterShader;
         ShadowReceiverShader _shadowReceiverShader{NoCreate};
 
-        DebugLines _debugLines;
-
         Object3D _shadowLightObject;
-        Object3D _mainCameraObject;
-        Object3D _debugCameraObject;
+        Object3D _cameraObject;
 
         ShadowLight _shadowLight;
-        SceneGraph::Camera3D _mainCamera;
-        SceneGraph::Camera3D _debugCamera;
-
-        Object3D* _activeCameraObject;
-        SceneGraph::Camera3D* _activeCamera;
+        SceneGraph::Camera3D _camera;
 
         std::vector<Model> _models;
 
@@ -87,10 +79,8 @@ ShadowsExample::ShadowsExample(const Arguments& arguments):
     Platform::Application{ arguments, Configuration{ }.setTitle("Magnum Shadows Example") },
     _shadowLightObject{ &_scene },
     _shadowLight{ _shadowLightObject },
-    _mainCameraObject{ &_scene },
-    _mainCamera{ _mainCameraObject },
-    _debugCameraObject{ &_scene },
-    _debugCamera{ _debugCameraObject }
+    _cameraObject{ &_scene },
+    _camera{ _cameraObject }
 {
     _shadowLight.setupShadowmaps(_shadowMapSize);
     _shadowReceiverShader = ShadowReceiverShader{};
@@ -117,7 +107,7 @@ ShadowsExample::ShadowsExample(const Arguments& arguments):
             std::rand() * 100.0f / RAND_MAX - 50.0f}));
     }
 
-    _mainCamera.setProjectionMatrix(
+    _camera.setProjectionMatrix(
         Matrix4::perspectiveProjection(
             35.0_degf,
             Vector2{ GL::defaultFramebuffer.viewport().size() }.aspectRatio(),
@@ -126,21 +116,7 @@ ShadowsExample::ShadowsExample(const Arguments& arguments):
         )
     );
 
-    _mainCameraObject.setTransformation(Matrix4::translation(Vector3::yAxis(3.0f)));
-
-    _debugCamera.setProjectionMatrix(
-        Matrix4::perspectiveProjection(
-            35.0_degf,
-            Vector2{ GL::defaultFramebuffer.viewport().size() }.aspectRatio(),
-            MainCameraNear / 4.0f, MainCameraFar * 4.0f
-        )
-    );
-
-    _debugCameraObject.setTransformation(Matrix4::lookAt(
-        { 100.0f, 50.0f, 0.0f }, Vector3::zAxis(-30.0f), Vector3::yAxis()));
-
-    _activeCamera = &_mainCamera;
-    _activeCameraObject = &_mainCameraObject;
+    _cameraObject.setTransformation(Matrix4::translation(Vector3::yAxis(3.0f)));
 
     _shadowLightObject.setTransformation(
         Matrix4::lookAt(
@@ -208,87 +184,32 @@ Object3D* ShadowsExample::createSceneObject(Model& model, bool makeCaster, bool 
 
 void ShadowsExample::drawEvent() {
     if(!_mainCameraVelocity.isZero()) {
-        Matrix4 transform = _activeCameraObject->transformation();
+        Matrix4 transform = _cameraObject.transformation();
         transform.translation() += transform.rotation()*_mainCameraVelocity*0.3f;
-        _activeCameraObject->setTransformation(transform);
+        _cameraObject.setTransformation(transform);
         redraw();
     }
 
-    const Vector3 screenDirection = _shadowStaticAlignment ? Vector3::zAxis() : _mainCameraObject.transformation()[2].xyz();
-
-    /* You only really need to do this when your camera moves */
-    _shadowLight.setTarget({3, 2, 3}, screenDirection, _mainCamera);
-
-    /* You can use face culling, depending on your geometry. You might want to
-       render only back faces for shadows. */
-    switch (_shadowMapFaceCullMode) {
-        case 0:
-            GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
-            break;
-        case 2:
-            GL::Renderer::setFaceCullingMode(GL::Renderer::PolygonFacing::Front);
-            break;
-    }
+    _shadowLight.setTarget({ 3, 2, 3 }, Vector3::zAxis(), _camera);
 
     /* Create the shadow map textures. */
-    _shadowLight.render(_shadowCasterDrawables);
-
-    switch (_shadowMapFaceCullMode) {
-        case 0:
-            GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
-            break;
-        case 2:
-            GL::Renderer::setFaceCullingMode(GL::Renderer::PolygonFacing::Back);
-            break;
+    GL::Renderer::setFaceCullingMode(GL::Renderer::PolygonFacing::Front);
+    {
+        _shadowLight.render(_shadowCasterDrawables);
     }
+    GL::Renderer::setFaceCullingMode(GL::Renderer::PolygonFacing::Back);
 
+    /* Render the scene */
     GL::Renderer::setClearColor({0.1f, 0.1f, 0.4f, 1.0f});
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
-    Matrix4 shadowMatrix{};
-    // for(std::size_t layerIndex = 0; layerIndex != _shadowLight.layerCount(); ++layerIndex)
-    shadowMatrix = _shadowLight.layerMatrix();
-
-    _shadowReceiverShader.setShadowmapMatrix(shadowMatrix)
+    _shadowReceiverShader.setShadowmapMatrix(_shadowLight.layerMatrix())
                          .setShadowmapTexture(_shadowLight.shadowTexture())
                          .setLightDirection(_shadowLightObject.transformation().backward());
 
-    _activeCamera->draw(_shadowReceiverDrawables);
-
-    renderDebugLines();
+    _camera.draw(_shadowReceiverDrawables);
 
     swapBuffers();
-}
-
-void ShadowsExample::renderDebugLines() {
-    if(_activeCamera != &_debugCamera)
-        return;
-
-    constexpr const Matrix4 unbiasMatrix{{ 2.0f,  0.0f,  0.0f, 0.0f},
-                                         { 0.0f,  2.0f,  0.0f, 0.0f},
-                                         { 0.0f,  0.0f,  2.0f, 0.0f},
-                                         {-1.0f, -1.0f, -1.0f, 1.0f}};
-
-    _debugLines.reset();
-
-    const Matrix4 imvp = (_mainCamera.projectionMatrix()*_mainCamera.cameraMatrix()).inverted();
-    const Matrix4 layerMatrix = _shadowLight.layerMatrix();
-
-    _debugLines.addFrustum(
-        (unbiasMatrix * layerMatrix).inverted(),
-        Color3::fromHsv({ 0.0_degf, 1.0f, 0.5f })
-    );
-
-    _debugLines.addFrustum(
-        imvp,
-        Color3::fromHsv({ 0.0_degf, 1.0f, 1.0f }),
-        0, 1
-    );
-
-    _debugLines.draw(
-        _activeCamera->projectionMatrix() *
-        _activeCamera->cameraMatrix()
-    );
 }
 
 void ShadowsExample::mousePressEvent(MouseEvent& event) {
@@ -304,13 +225,13 @@ void ShadowsExample::mouseReleaseEvent(MouseEvent& event) {
 void ShadowsExample::mouseMoveEvent(MouseMoveEvent& event) {
     if(!(event.buttons() & MouseMoveEvent::Button::Left)) return;
 
-    const Matrix4 transform = _activeCameraObject->transformation();
+    const Matrix4 transform = _cameraObject.transformation();
 
     constexpr const Float angleScale = 0.0005f;
     const Float angleX = event.relativePosition().x() * angleScale;
     const Float angleY = event.relativePosition().y() * angleScale;
     if(angleX != 0.0f || angleY != 0.0f) {
-        _activeCameraObject->setTransformation(Matrix4::lookAt(transform.translation(),
+        _cameraObject.setTransformation(Matrix4::lookAt(transform.translation(),
             transform.translation() - transform.rotationScaling()*Vector3{-angleX, angleY, 1.0f},
             Vector3::yAxis()));
     }
@@ -340,14 +261,6 @@ void ShadowsExample::keyPressEvent(KeyEvent& event) {
 
     } else if(event.key() == KeyEvent::Key::Left) {
         _mainCameraVelocity.x() = -1.0f;
-
-    } else if(event.key() == KeyEvent::Key::F1) {
-        _activeCamera = &_mainCamera;
-        _activeCameraObject = &_mainCameraObject;
-
-    } else if(event.key() == KeyEvent::Key::F2) {
-        _activeCamera = &_debugCamera;
-        _activeCameraObject = &_debugCameraObject;
 
     } else if(event.key() == KeyEvent::Key::F3) {
         _shadowMapFaceCullMode = (_shadowMapFaceCullMode + 1) % 3;
@@ -384,7 +297,7 @@ void ShadowsExample::setShadowMapSize(const Vector2i& shadowMapSize) {
     if((shadowMapSize >= Vector2i{1}).all() && (shadowMapSize <= GL::Texture2D::maxSize()).all()) {
         _shadowMapSize = shadowMapSize;
         _shadowLight.setupShadowmaps(_shadowMapSize);
-        Debug() << "Shadow map size" << shadowMapSize << "x" << _shadowLight.layerCount() << "layers";
+        Debug() << "Shadow map size" << shadowMapSize << "x";
     }
 }
 

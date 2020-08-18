@@ -57,8 +57,6 @@ add_executable(magnum-shadows
     ShadowReceiverDrawable.h
     ShadowReceiverShader.cpp
     ShadowReceiverShader.h
-    DebugLines.h
-    DebugLines.cpp
     Types.h
     ${Shadows_RESOURCES})
 target_link_libraries(magnum-shadows PRIVATE

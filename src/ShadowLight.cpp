@@ -244,8 +244,6 @@ void ShadowLight::render(SceneGraph::DrawableGroup3D& drawables) {
         filteredDrawables[i]->draw(transformations[i], *this);
     }
 
-    Debug() << "Drawables:" << filteredDrawables.size();
-
     GL::defaultFramebuffer.bind();
 }
 

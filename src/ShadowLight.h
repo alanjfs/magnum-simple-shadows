@@ -56,8 +56,6 @@ class ShadowLight: public SceneGraph::Camera3D {
 
         std::vector<Vector3> layerFrustumCorners(SceneGraph::Camera3D& mainCamera, Int layer);
 
-        std::size_t layerCount() const { return 1; }
-
         const Matrix4& layerMatrix() const {
             return _data->shadowMatrix;
         }
