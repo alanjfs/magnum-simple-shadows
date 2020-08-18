@@ -67,6 +67,8 @@ target_link_libraries(magnum-shadows PRIVATE
     Magnum::MeshTools
     Magnum::Primitives
     Magnum::SceneGraph
-    Magnum::Shaders)
+    Magnum::Shaders
+    MagnumIntegration::ImGui
+)
 
 install(TARGETS magnum-shadows DESTINATION ${MAGNUM_BINARY_INSTALL_DIR})

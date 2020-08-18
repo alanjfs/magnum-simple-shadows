@@ -16,6 +16,7 @@ class ShadowReceiverDrawable: public SceneGraph::Drawable3D {
 
         void draw(const Matrix4 &transformationMatrix, SceneGraph::Camera3D& camera) override;
 
+        GL::Mesh& mesh() { return *_mesh; }
         void setMesh(GL::Mesh& mesh) { _mesh = &mesh; }
 
         void setShader(ShadowReceiverShader& shader) { _shader = &shader; }

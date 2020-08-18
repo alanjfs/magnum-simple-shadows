@@ -17,7 +17,7 @@ namespace Magnum { namespace Examples {
  *
  * The object it's attached to should face the direction that the light travels.
  *
-*/
+ */
 class ShadowLight: public SceneGraph::Camera3D {
     public:
         static std::vector<Vector3> frustumCorners(SceneGraph::Camera3D& mainCamera, Float z0 = -1.0f, Float z1 = 1.0f);
@@ -58,6 +58,8 @@ class ShadowLight: public SceneGraph::Camera3D {
         const Matrix4& layerMatrix() const {
             return _data->shadowMatrix;
         }
+
+        Vector2i size() const { return _data->shadowFramebuffer.viewport().size(); }
 
         GL::Texture2D& shadowTexture() { return _shadowTexture; }
 

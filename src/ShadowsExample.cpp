@@ -17,6 +17,9 @@
 #include <Magnum/Trade/MeshData.h>
 #include <Magnum/Math/Color.h>
 
+#include <Magnum/ImGuiIntegration/Context.hpp>
+#include <Magnum/ImGuiIntegration/Widgets.h>
+
 #include "ShadowCasterShader.h"
 #include "ShadowReceiverShader.h"
 #include "ShadowLight.h"
@@ -47,17 +50,20 @@ class ShadowsExample: public Platform::Application {
         void mouseMoveEvent(MouseMoveEvent& event) override;
         void keyPressEvent(KeyEvent &event) override;
         void keyReleaseEvent(KeyEvent &event) override;
+        void viewportEvent(ViewportEvent& event) override;
 
+        void step();
         void addModel(const Trade::MeshData& meshData3D);
         Object3D* createSceneObject(Model& model, bool makeCaster, bool makeReceiver);
         void recompileReceiverShader();
         void setShadowMapSize(const Vector2i& shadowMapSize);
 
+        ImGuiIntegration::Context _imgui{NoCreate};
+
         Scene3D _scene;
         SceneGraph::DrawableGroup3D _shadowCasterDrawables;
         SceneGraph::DrawableGroup3D _shadowReceiverDrawables;
-        ShadowCasterShader _shadowCasterShader;
-        ShadowReceiverShader _shadowReceiverShader{NoCreate};
+        ShadowReceiverShader _shadowReceiverShader{ NoCreate };
 
         Object3D _shadowLightObject;
         Object3D _cameraObject;
@@ -74,12 +80,31 @@ class ShadowsExample: public Platform::Application {
 };
 
 ShadowsExample::ShadowsExample(const Arguments& arguments):
-    Platform::Application{ arguments, Configuration{ }.setTitle("Magnum Shadows Example") },
+    Platform::Application{
+        arguments,
+        Configuration{}
+            .setTitle("Magnum Shadows Example")
+            .setSize({ 1280, 720 }, { 1.5f, 1.5f })
+            .setWindowFlags(Configuration::WindowFlag::Resizable),
+    },
     _shadowLightObject{ &_scene },
     _shadowLight{ _shadowLightObject },
     _cameraObject{ &_scene },
     _camera{ _cameraObject }
 {
+
+    _imgui = ImGuiIntegration::Context(Vector2{ windowSize() } / dpiScaling(),
+                                       windowSize(),
+                                       framebufferSize());
+
+    GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add,
+                                   GL::Renderer::BlendEquation::Add);
+    GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha,
+                                   GL::Renderer::BlendFunction::OneMinusSourceAlpha);
+
+    GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
+    GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
+
     _shadowLight.setupShadowmaps(_shadowMapSize);
     _shadowReceiverShader = ShadowReceiverShader{};
     _shadowReceiverShader.setShadowBias(_shadowBias);
@@ -162,42 +187,49 @@ void ShadowsExample::addModel(const Trade::MeshData& meshData) {
  * for culling.
  *
  */
-Object3D* ShadowsExample::createSceneObject(Model& model, bool makeCaster, bool makeReceiver) {
+Object3D* ShadowsExample::createSceneObject(Model& model, bool, bool) {
     auto* object = new Object3D(&_scene);
 
-    if(makeCaster) {
-        auto caster = new ShadowCasterDrawable(*object, &_shadowCasterDrawables);
-        caster->setShader(_shadowCasterShader);
-        caster->setMesh(model.mesh, model.radius);
-    }
-
-    if(makeReceiver) {
-        auto receiver = new ShadowReceiverDrawable(*object, &_shadowReceiverDrawables);
-        receiver->setShader(_shadowReceiverShader);
-        receiver->setMesh(model.mesh);
-    }
-
+    auto receiver = new ShadowReceiverDrawable(*object, &_shadowReceiverDrawables);
+    receiver->setShader(_shadowReceiverShader);
+    receiver->setMesh(model.mesh);
+ 
     return object;
 }
 
-void ShadowsExample::drawEvent() {
+void ShadowsExample::step() {
     if(!_cameraVelocity.isZero()) {
         Matrix4 transform = _cameraObject.transformation();
         transform.translation() += transform.rotation()
                                    * _cameraVelocity
                                    * 0.3f;
         _cameraObject.setTransformation(transform);
-        redraw();
     }
+}
+
+void ShadowsExample::drawEvent() {
+    this->step();
+
+    _imgui.newFrame();
 
     _shadowLight.setTarget({ 3, 2, 3 }, Vector3::zAxis(), _camera);
 
     /* Create the shadow map textures. */
     GL::Renderer::setFaceCullingMode(GL::Renderer::PolygonFacing::Front);
     {
-        _shadowLight.render(_shadowCasterDrawables);
+        _shadowLight.render(_shadowReceiverDrawables);
     }
     GL::Renderer::setFaceCullingMode(GL::Renderer::PolygonFacing::Back);
+
+    ImGui::Begin("Shadowmap");
+    {
+        ImGuiIntegration::image(
+            _shadowLight.shadowTexture(),
+            Vector2(_shadowLight.size() / dpiScaling()),     // size
+            {{}, Vector2{ 1.0f }}                            // uvRange
+        );
+    }
+    ImGui::End();
 
     /* Render the scene */
     GL::Renderer::setClearColor({0.1f, 0.1f, 0.4f, 1.0f});
@@ -209,20 +241,48 @@ void ShadowsExample::drawEvent() {
 
     _camera.draw(_shadowReceiverDrawables);
 
+    if (ImGui::GetIO().WantTextInput && !this->isTextInputActive()) {
+        startTextInput();
+    }
+    else if (!ImGui::GetIO().WantTextInput && this->isTextInputActive()) {
+        stopTextInput();
+    }
+
+    _imgui.updateApplicationCursor(*this);
+
+    GL::Renderer::enable(GL::Renderer::Feature::Blending);
+    GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
+    GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
+    GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
+
+    _imgui.drawFrame();
+
+    GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
+    GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
+    GL::Renderer::disable(GL::Renderer::Feature::ScissorTest);
+    GL::Renderer::disable(GL::Renderer::Feature::Blending);
+
     swapBuffers();
+    redraw();
 }
 
 void ShadowsExample::mousePressEvent(MouseEvent& event) {
+    if(_imgui.handleMousePressEvent(event)) return;
+
     if(event.button() != MouseEvent::Button::Left) return;
     event.setAccepted();
 }
 
 void ShadowsExample::mouseReleaseEvent(MouseEvent& event) {
+    if(_imgui.handleMouseReleaseEvent(event)) return;
+
     event.setAccepted();
     redraw();
 }
 
 void ShadowsExample::mouseMoveEvent(MouseMoveEvent& event) {
+    if(_imgui.handleMouseMoveEvent(event)) return;
+
     if(!(event.buttons() & MouseMoveEvent::Button::Left)) return;
 
     const Matrix4 transform = _cameraObject.transformation();
@@ -241,6 +301,8 @@ void ShadowsExample::mouseMoveEvent(MouseMoveEvent& event) {
 }
 
 void ShadowsExample::keyPressEvent(KeyEvent& event) {
+    if(_imgui.handleKeyPressEvent(event)) return;
+
     if(event.key() == KeyEvent::Key::Esc) {
         this->exit();
 
@@ -282,6 +344,24 @@ void ShadowsExample::keyPressEvent(KeyEvent& event) {
     redraw();
 }
 
+void ShadowsExample::keyReleaseEvent(KeyEvent &event) {
+    if(_imgui.handleKeyReleaseEvent(event)) return;
+
+    if(event.key() == KeyEvent::Key::Up || event.key() == KeyEvent::Key::Down) {
+        _cameraVelocity.z() = 0.0f;
+
+    } else if (event.key() == KeyEvent::Key::PageDown || event.key() == KeyEvent::Key::PageUp) {
+        _cameraVelocity.y() = 0.0f;
+
+    } else if (event.key() == KeyEvent::Key::Right || event.key() == KeyEvent::Key::Left) {
+        _cameraVelocity.x() = 0.0f;
+
+    } else return;
+
+    event.setAccepted();
+    redraw();
+}
+
 void ShadowsExample::setShadowMapSize(const Vector2i& shadowMapSize) {
     if((shadowMapSize >= Vector2i{1}).all() && (shadowMapSize <= GL::Texture2D::maxSize()).all()) {
         _shadowMapSize = shadowMapSize;
@@ -299,21 +379,13 @@ void ShadowsExample::recompileReceiverShader() {
     }
 }
 
-void ShadowsExample::keyReleaseEvent(KeyEvent &event) {
-    if(event.key() == KeyEvent::Key::Up || event.key() == KeyEvent::Key::Down) {
-        _cameraVelocity.z() = 0.0f;
+void ShadowsExample::viewportEvent(ViewportEvent& event) {
+    GL::defaultFramebuffer.setViewport({{}, event.framebufferSize()});
 
-    } else if (event.key() == KeyEvent::Key::PageDown || event.key() == KeyEvent::Key::PageUp) {
-        _cameraVelocity.y() = 0.0f;
-
-    } else if (event.key() == KeyEvent::Key::Right || event.key() == KeyEvent::Key::Left) {
-        _cameraVelocity.x() = 0.0f;
-
-    } else return;
-
-    event.setAccepted();
-    redraw();
+    _imgui.relayout(Vector2{ event.windowSize() } / event.dpiScaling(),
+        event.windowSize(), event.framebufferSize());
 }
+
 
 }}
 

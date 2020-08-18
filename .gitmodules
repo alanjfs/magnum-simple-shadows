@@ -10,3 +10,9 @@
 [submodule "cmake/toolchains"]
 	path = cmake/toolchains
 	url = https://github.com/mosra/toolchains
+[submodule "externals/imgui"]
+	path = external/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "external/magnum-integration"]
+	path = external/magnum-integration
+	url = https://github.com/mosra/magnum-integration.git

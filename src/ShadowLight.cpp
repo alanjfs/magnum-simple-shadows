@@ -25,7 +25,7 @@ void ShadowLight::setupShadowmaps(const Vector2i& size) {
     _shadowTexture = GL::Texture2D{};
     _shadowTexture
 
-        // See also DepthComponent8/16/32
+        // Needs to be DepthComponent24 - not 8, 16 or 32 - unsure why
         .setStorage(1, GL::TextureFormat::DepthComponent24, size)
         
         // Required, else OpenGL will tell you..
@@ -110,14 +110,14 @@ std::vector<Vector3> ShadowLight::frustumCorners(SceneGraph::Camera3D& mainCamer
 std::vector<Vector3> ShadowLight::frustumCorners(const Matrix4& imvp,
                                                  const Float z0,
                                                  const Float z1) {
-    return {imvp.transformPoint({-1,-1, z0}),
-            imvp.transformPoint({ 1,-1, z0}),
-            imvp.transformPoint({-1, 1, z0}),
-            imvp.transformPoint({ 1, 1, z0}),
-            imvp.transformPoint({-1,-1, z1}),
-            imvp.transformPoint({ 1,-1, z1}),
-            imvp.transformPoint({-1, 1, z1}),
-            imvp.transformPoint({ 1, 1, z1})};
+    return { imvp.transformPoint({-1,-1, z0}),
+             imvp.transformPoint({ 1,-1, z0}),
+             imvp.transformPoint({-1, 1, z0}),
+             imvp.transformPoint({ 1, 1, z0}),
+             imvp.transformPoint({-1,-1, z1}),
+             imvp.transformPoint({ 1,-1, z1}),
+             imvp.transformPoint({-1, 1, z1}),
+             imvp.transformPoint({ 1, 1, z1}) };
 }
 
 
@@ -135,7 +135,7 @@ void ShadowLight::render(SceneGraph::DrawableGroup3D& drawables) {
     Float orthographicNear = _data->orthographicNear;
     const Float orthographicFar = _data->orthographicFar;
 
-    /* Move this whole object to the right place to render each _data */
+    /* Move this whole object to the right place */
     _object.setTransformation(_data->shadowCameraMatrix)
            .setClean();
 
@@ -153,13 +153,7 @@ void ShadowLight::render(SceneGraph::DrawableGroup3D& drawables) {
     _data->shadowFramebuffer.clear(GL::FramebufferClear::Depth)
                             .bind();
 
-    for (std::size_t i = 0; i != drawables.size(); ++i) {
-        auto& obj = static_cast<Object3D&>(drawables[i].object());
-        auto transform = cameraMatrix()
-                       * _object.scene()->transformation()
-                       * obj.transformation();
-        drawables[i].draw(transform, *this);
-    }
+    this->draw(drawables);
 
     GL::defaultFramebuffer.bind();
 }

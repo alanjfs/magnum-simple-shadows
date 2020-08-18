@@ -10,9 +10,9 @@ out mediump vec3 transformedNormal;
 out highp vec3 shadowCoord;
 
 void main() {
-    transformedNormal = mat3(modelMatrix)*normal;
+    transformedNormal = mat3(modelMatrix) * normal;
 
     vec4 worldPos4 = modelMatrix * position;
     shadowCoord = (shadowmapMatrix * worldPos4).xyz;
-    gl_Position = transformationProjectionMatrix*position;
+    gl_Position = transformationProjectionMatrix * position;
 }
