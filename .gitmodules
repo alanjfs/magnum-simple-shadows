@@ -1,0 +1,12 @@
+[submodule "external/corrade"]
+	path = external/corrade
+	url = https://github.com/mosra/corrade.git
+[submodule "external/magnum"]
+	path = external/magnum
+	url = https://github.com/mosra/magnum.git
+[submodule "external/glfw"]
+	path = external/glfw
+	url = https://github.com/glfw/glfw
+[submodule "cmake/toolchains"]
+	path = cmake/toolchains
+	url = https://github.com/mosra/toolchains
