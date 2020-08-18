@@ -1,5 +1,6 @@
 build/*
-!build/.gitignore
+!build/win32/.gitignore
+!build/linux/.gitignore
 prefix/
 install/
 *.vs

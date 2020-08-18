@@ -81,7 +81,7 @@ ShadowsExample::ShadowsExample(const Arguments& arguments):
         arguments,
         Configuration{}
             .setTitle("Magnum Shadows Example")
-            .setSize({ 1280, 720 }, { 1.5f, 1.5f })
+            // .setSize({ 1280, 720 }, { 1.5f, 1.5f })
             .setWindowFlags(Configuration::WindowFlag::Resizable),
     },
     _shadowLightObject{ &_scene },
@@ -217,12 +217,14 @@ void ShadowsExample::drawEvent() {
     }
     GL::Renderer::setFaceCullingMode(GL::Renderer::PolygonFacing::Back);
 
-    ImGui::SetNextWindowSize({200, 200}, ImGuiCond_FirstUseEver);
+    ImVec2 windowSize { 200, 200 };
+    ImGui::SetNextWindowSize(windowSize, ImGuiCond_FirstUseEver);
     ImGui::Begin("Shadowmap");
     {
+        Float width { ImGui::GetWindowWidth() };
         ImGuiIntegration::image(
             _shadowLight.shadowTexture(),
-            Vector2(_shadowLight.size() / dpiScaling()),     // size
+            Vector2(width, width * _shadowLight.size().aspectRatio()),
             {{}, Vector2{ 1.0f }}                            // uvRange
         );
     }
